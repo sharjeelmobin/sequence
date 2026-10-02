@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sequence</title>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+:root{--teal:#43b9c6;--pink:#c4509b;--paper:#fffdf6;--ink:#1c2230;--red:#c8202f;--t0:#1d5fd6;--t1:#1f9d4f;--bg:#f6ebf2;--fg:#2a1d33;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#241a2a;--fg:#f3eaf5}}
+:root[data-theme="dark"]{--bg:#241a2a;--fg:#f3eaf5}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:600 15px/1.35 Nunito,system-ui,sans-serif;min-height:100%}
+#app{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px}
+h1{font:400 clamp(26px,6vw,40px)/1 "Bowlby One",Impact,sans-serif;letter-spacing:.04em;margin:0;color:var(--pink)}
+button{font:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid #ffb400;outline-offset:2px}
+.start{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;margin-top:12vh;max-width:340px}
+.start button,.big{background:var(--pink);color:#fff;border:0;border-radius:10px;padding:14px 20px;font-weight:800;font-size:17px;width:100%}
+.start small{opacity:.7}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;width:var(--s)}
+.pill{padding:4px 10px;border-radius:99px;color:#fff;font-weight:800;font-size:14px;opacity:.55}
+.pill.on{opacity:1;box-shadow:0 0 0 3px #ffb400}
+.t0{background:var(--t0)}.t1{background:var(--t1)}.t2{background:#d33}.big:disabled{opacity:.4}.start input,.lob input,.lob select{font:inherit;padding:12px;border-radius:10px;border:2px solid var(--pink);text-align:center;background:var(--paper);color:var(--ink);width:100%}.lob{display:flex;flex-direction:column;gap:10px;max-width:340px;width:100%;text-align:center;align-items:center;margin-top:6vh}.lob p{margin:0}.code{font:400 44px "Bowlby One",sans-serif;letter-spacing:.12em;color:var(--pink)}
+#app{--s:min(96vw,560px,calc((100dvh - 250px)*.83))}
+.frame{width:var(--s);background:var(--pink);padding:8px;border-radius:14px}
+.board{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;background:var(--teal);padding:4px;border-radius:8px}
+.cell{position:relative;aspect-ratio:5/6;background:var(--paper);border:0;border-radius:3px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink);font-weight:800;font-size:calc(var(--s)*.034);line-height:1}
+.cell.r{color:var(--red)}
+.cell i{font-style:normal;font-size:1.25em}
+.cell.corner{background:var(--teal);cursor:default}
+.cell.corner::before{content:"";width:70%;aspect-ratio:1;border-radius:50%;background:conic-gradient(var(--t0) 0 25%,var(--t1) 0 50%,#d33 0 75%,#fff 0);border:2px solid #fff}
+.cell.ok{outline:3px solid #ffb400;outline-offset:-1px;z-index:1;animation:pulse 1.2s ease-in-out infinite}
+.cell.rm{outline-color:#e11d48}
+.cell.last{box-shadow:inset 0 0 0 2px #7c3aed}
+@keyframes pulse{50%{filter:brightness(.88)}}
+@media (prefers-reduced-motion:reduce){.cell.ok{animation:none}}
+.chip{position:absolute;width:72%;aspect-ratio:1;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 3px #0006;pointer-events:none}
+.chip.lk{outline:3px solid #ffd54a;box-shadow:0 0 8px 2px #ffd54a}
+.msg{min-height:1.4em;text-align:center;font-weight:800}
+.hand{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;width:var(--s);min-height:78px}
+.card{width:clamp(44px,12vw,62px);aspect-ratio:5/7;background:var(--paper);color:var(--ink);border:2px solid #0003;border-radius:7px;font-weight:800;font-size:clamp(16px,4.5vw,22px);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;transition:transform .12s}
+.card.r{color:var(--red)}
+.card small{font-size:10px;font-weight:800}
+.card.sel{transform:translateY(-10px);border-color:#ffb400;box-shadow:0 4px 0 #ffb400}
+.card.dead{opacity:.5}
+.ovl{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;padding:20px;z-index:9}
+.box{background:var(--paper);color:var(--ink);padding:26px;border-radius:16px;text-align:center;max-width:320px;display:flex;flex-direction:column;gap:14px}
+.link{background:none;border:0;color:inherit;text-decoration:underline;opacity:.75}
+</style></head><body><main id="app"></main>
+<script>
+const SYM={S:'♠',H:'♥',D:'♦',C:'♣'},RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'],TEAM=['Blue','Green','Red'];
+// Standard Sequence board (F = free corner). Each card appears exactly twice.
+const B=`F 2S 3S 4S 5S 6S 7S 8S 9S F|6C 5C 4C 3C 2C AH KH QH 10H 10S|7C AS 2D 3D 4D 5D 6D 7D 9H QS|8C KS 6C 5C 4C 3C 2C 8D 8H KS|9C QS 7C 6H 5H 4H AH 9D 7H AS|10C 10S 8C 7H 2H 3H KH 10D 6H 2D|QC 9S 9C 8H 9H 10H QH QD 5H 3D|KC 8S 10C QC KC AC AD KD 4H 4D|AC 7S 6S 5S 4S 3S 2S 2H 3H 5D|F AD KD QD 10D 9D 8D 7D 6D F`.split('|').map(r=>r.split(' '));
+const DIRS=[[0,1],[1,0],[1,1],[1,-1]],$=s=>document.querySelector(s);
+const twoEye=c=>c==='JD'||c==='JC',oneEye=c=>c==='JS'||c==='JH',isJ=c=>c[0]==='J',corner=(r,c)=>B[r][c]==='F';
+let G=null;
+function shuffle(a){for(let i=a.length;i>1;){const j=Math.random()*i--|0;[a[i],a[j]]=[a[j],a[i]]}return a}
+function start(mode,N,NT,names){const n=N||(mode==='cpu'?2:4),deck=[];
+ for(let k=0;k<2;k++)for(const s of 'SHDC')for(const r of RANKS)deck.push(r+s);
+ shuffle(deck);const hands=[];for(let p=0;p<n;p++)hands.push(deck.splice(0,{2:7,3:6,4:6,6:5,8:4}[n]));
+ G={mode,n,deck,disc:[],hands,chips:B.map(r=>r.map(()=>null)),lock:B.map(r=>r.map(()=>false)),nt:NT||2,need:(NT||2)===2?2:1,names,me:0,seq:Array(NT||2).fill(0),turn:0,sel:null,over:false,last:null,msg:'',swapped:false,hide:mode==='local'};
+ if(mode==='online')return pushAll();render()}
+const teamOf=p=>p%G.nt,nm=p=>G.mode==='cpu'?(p?'CPU':'You'):G.mode==='online'?`${G.names[p]} (${TEAM[teamOf(p)]})`:`Player ${p+1} (${TEAM[teamOf(p)]})`;
+function draw(p){if(!G.deck.length){G.deck=shuffle(G.disc);G.disc=[]}G.hands[p].push(G.deck.pop())}
+const mine=(r,c,t)=>r>=0&&r<10&&c>=0&&c<10&&(corner(r,c)||G.chips[r][c]===t);
+function line(r,c,t,d){const f=[],b=[];
+ for(let i=1;mine(r+d[0]*i,c+d[1]*i,t);i++)f.push([r+d[0]*i,c+d[1]*i]);
+ for(let i=1;mine(r-d[0]*i,c-d[1]*i,t);i++)b.push([r-d[0]*i,c-d[1]*i]);
+ return [...b.reverse(),[r,c],...f]}
+function checkSeq(r,c,t){let n=0;
+ for(const d of DIRS){const ln=line(r,c,t,d);if(ln.length<5)continue;
+  const k=ln.findIndex(([y,x])=>y===r&&x===c);
+  for(let i=Math.max(0,k-4);i<=Math.min(k,ln.length-5);i++){const w=ln.slice(i,i+5);
+   if(w.filter(([y,x])=>G.lock[y][x]&&!corner(y,x)).length<=1){w.forEach(([y,x])=>G.lock[y][x]=true);n++;break}}}
+ G.seq[t]+=n;return n}
+function moves(card,t){const m=[];
+ for(let r=0;r<10;r++)for(let c=0;c<10;c++){if(corner(r,c))continue;const o=G.chips[r][c];
+  if(twoEye(card)?o==null:oneEye(card)?(o!=null&&o!==t&&!G.lock[r][c]):(o==null&&B[r][c]===card))m.push([r,c])}
+ return m}
+const dead=(card,t)=>!isJ(card)&&!moves(card,t).length;
+function play(p,card,r,c){const t=teamOf(p),h=G.hands[p];h.splice(h.indexOf(card),1);G.disc.push(card);
+ if(oneEye(card)){G.chips[r][c]=null;G.msg=`${nm(p)} removed a chip.`}
+ else{G.chips[r][c]=t;const n=checkSeq(r,c,t);G.msg=n?`${nm(p)} made a Sequence!`:`${nm(p)} placed a chip.`}
+ G.last=[r,c];draw(p);G.sel=null;
+ if(G.seq[t]>=G.need){G.over=true;G.winner=t;return sync()}
+ G.turn=(G.turn+1)%G.n;G.swapped=false;G.hide=G.mode==='local';sync();
+ if(G.mode==='cpu'&&G.turn===1)setTimeout(cpuMove,900)}
+function score(card,r,c,t){const o=1-t,sum=(tt)=>DIRS.reduce((s,d)=>s+line(r,c,tt,d).length**3,0),mx=(tt)=>Math.max(...DIRS.map(d=>line(r,c,tt,d).length));
+ let s=0;
+ if(oneEye(card))s=sum(o)*.9-25+(mx(o)>=4?60:0);
+ else{s=sum(t)+sum(o)*.8+(mx(t)>=5?1000:0)+(mx(o)>=5?600:0);if(twoEye(card)&&mx(t)<5)s-=60}
+ return s-(Math.abs(4.5-r)+Math.abs(4.5-c))*.3+Math.random()*3}
+function cpuMove(){if(G.over)return;const p=1,t=1,h=G.hands[p];
+ const dc=h.find(c=>dead(c,t));if(dc){h.splice(h.indexOf(dc),1);G.disc.push(dc);draw(p)}
+ let best=null,bs=-1e9;
+ for(const c of h)for(const [r,x] of moves(c,t)){const s=score(c,r,x,t);if(s>bs){bs=s;best=[c,r,x]}}
+ if(!best){G.turn=0;G.msg='CPU had no move.';return render()}
+ play(p,...best)}
+const human=()=>G&&!G.over&&!G.hide&&(G.mode==='local'||G.turn===G.me);
+function render(){const app=$('#app');if(!G&&L)return lobbyView();
+ if(!G){app.innerHTML=`<section class="start"><h1>SEQUENCE</h1><p>Place chips to get five in a row. Make two Sequences to win.</p><button data-m="cpu">Play the CPU (1 vs 1)</button><button data-m="local">2 vs 2 on this device</button><input id="nm" placeholder="Your name" maxlength="12"><button data-a="mk">Create online room</button><input id="cd" placeholder="Room code" maxlength="5" autocapitalize="characters"><button data-a="jn">Join room</button><small>Online games connect players directly. No account needed.</small></section>`;return}
+ const ct=teamOf(G.turn),viewer=G.mode==='local'?G.turn:G.me,hand=G.hands[viewer];
+ const ok=new Set();if(G.sel&&human())moves(G.sel,ct).forEach(([r,c])=>ok.add(r*10+c));
+ let bd='';
+ for(let r=0;r<10;r++)for(let c=0;c<10;c++){const k=B[r][c],o=G.chips[r][c],cn=['cell'];
+  if(k==='F')cn.push('corner');else if('HD'.includes(k.slice(-1)))cn.push('r');
+  if(ok.has(r*10+c))cn.push('ok',oneEye(G.sel)?'rm':'');
+  if(G.last&&G.last[0]===r&&G.last[1]===c)cn.push('last');
+  bd+=`<button class="${cn.join(' ')}" data-cell="${r},${c}" ${k==='F'?'tabindex=-1':''} aria-label="${k}">${k==='F'?'':`<b>${k.slice(0,-1)}</b><i>${SYM[k.slice(-1)]}</i>`}${o!=null?`<u class="chip t${o}${G.lock[r][c]?' lk':''}"></u>`:''}</button>`}
+ const hh=G.hide&&!G.over?`<button class="big" style="width:auto" data-a="show">Show ${nm(G.turn)}’s hand</button>`:
+  hand.map(c=>{const d=dead(c,ct)&&human(),j=isJ(c);return `<button class="card ${'HD'.includes(c.slice(-1))?'r':''} ${G.sel===c?'sel':''} ${d?'dead':''}" data-card="${c}">${c.slice(0,-1)}${SYM[c.slice(-1)]}${j?`<small>${twoEye(c)?'wild':'remove'}</small>`:''}${d?'<small>dead: swap</small>':''}</button>`}).join('');
+ const status=G.over?'Game over':G.mode==='cpu'&&G.turn===1?'CPU is thinking…':G.hide?`Pass the device to ${nm(G.turn)}`:G.mode==='online'&&G.turn!==G.me?`Waiting for ${nm(G.turn)}…`:`${nm(G.turn)}: pick a card, then a glowing space`;
+ app.innerHTML=`<div class="bar"><h1>SEQUENCE</h1><span>${G.seq.map((s,i)=>`<span class="pill t${i} ${ct===i&&!G.over?'on':''}">${TEAM[i]} ${s}/${G.need}</span>`).join(' ')}</span></div>
+ <div class="frame"><div class="board">${bd}</div></div>
+ <div class="msg" aria-live="polite">${status}${G.msg&&!G.hide?`<br><small>${G.msg}</small>`:''}</div>
+ <div class="hand">${hh}</div><button class="link" data-a="new">New game</button>
+ ${G.over?`<div class="ovl"><div class="box"><h1>${G.mode==='cpu'?(G.winner===0?'You win!':'CPU wins'):TEAM[G.winner]+' wins!'}</h1><button class="big" data-a="new">Play again</button></div></div>`:''}`}
+$('#app').onclick=e=>{const b=e.target.closest('[data-m],[data-card],[data-cell],[data-a]');if(!b)return;const d=b.dataset;
+ if(d.m)return start(d.m);
+ if(d.a==='new'){leave();return render()}
+ if(d.a==='mk')return hostRoom();if(d.a==='jn')return joinRoom($('#cd').value);if(d.a==='go')return hostStart();
+ if(d.a==='show'){G.hide=false;return render()}
+ if(!human())return;const ct=teamOf(G.turn);
+ if(d.card){if(dead(d.card,ct)){if(G.mode==='online')return net({t:'swap',card:d.card});if(G.swapped){G.msg='Only one dead-card swap per turn.';return render()}
+   const h=G.hands[G.turn];h.splice(h.indexOf(d.card),1);G.disc.push(d.card);draw(G.turn);G.swapped=true;G.sel=null;G.msg='Dead card swapped. Now play a card.';return render()}
+  G.sel=G.sel===d.card?null:d.card;return render()}
+ if(d.cell&&G.sel){const [r,c]=d.cell.split(',').map(Number);
+  if(moves(G.sel,ct).some(([y,x])=>y===r&&x===c)){if(G.mode==='online'){const card=G.sel;G.sel=null;return net({t:'play',card,r,c})}play(G.turn,G.sel,r,c)}}};
+$('#app').onchange=e=>{if(e.target.id==='fm'){L.fmt=+e.target.value;lobbySend()}};
+
+// ---- online: peer-to-peer. The room creator's browser is the dealer. ----
+const FM=[['1 vs 1',2,2],['2 vs 2',4,2],['3 vs 3',6,2],['4 vs 4',8,2],['3 players, each alone',3,3],['3 teams of 2',6,3]];
+let L=null,peer=null,conns=[],conn=null,host=false;
+const sync=()=>G&&G.mode==='online'?pushAll():render();
+const myName=()=>($('#nm')&&$('#nm').value.trim())||'Player';
+function leave(){const p=peer;peer=null;conns=[];conn=null;G=null;L=null;try{p&&p.destroy()}catch(e){}}
+function err(m){leave();render();alert(m)}
+function hostRoom(){const name=myName();host=true;
+ const code=Array.from({length:4},()=>'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.random()*31|0]).join('');
+ peer=new Peer('seqgame-'+code);
+ peer.on('error',e=>e.type==='unavailable-id'?(leave(),hostRoom()):err('Could not create a room ('+e.type+').'));
+ peer.on('open',()=>{L={code,fmt:1,names:[name]};conns=[{send(){}}];render()});
+ peer.on('connection',c=>{c.on('data',m=>onMsg(c,m));c.on('close',()=>drop(c))})}
+function lobbySend(){conns.forEach((c,i)=>i&&c.send({t:'lobby',you:i,L:{code:L.code,fmt:L.fmt,names:L.names}}));render()}
+function drop(c){const i=conns.indexOf(c);if(i<1)return;
+ if(!G){conns.splice(i,1);L.names.splice(i,1);lobbySend()}else{G.msg=G.names[i]+' disconnected. The game cannot continue.';pushAll()}}
+function onMsg(c,m){let i=conns.indexOf(c);
+ if(m.t==='join'){if(i>-1)return;if(G||conns.length>=FM[L.fmt][1]){c.send({t:'err',msg:'That room is full or already started.'});return}
+  conns.push(c);L.names.push(String(m.name||'Player').slice(0,12));return lobbySend()}
+ if(i<0||!G||G.over||G.turn!==i)return;
+ if(m.t==='swap'){const h=G.hands[i];if(!h.includes(m.card)||!dead(m.card,teamOf(i))||G.swapped)return;
+  h.splice(h.indexOf(m.card),1);G.disc.push(m.card);draw(i);G.swapped=true;G.msg='Dead card swapped.';pushAll()}
+ if(m.t==='play'&&G.hands[i].includes(m.card)&&moves(m.card,teamOf(i)).some(([y,x])=>y===m.r&&x===m.c))play(i,m.card,m.r,m.c)}
+const net=m=>host?onMsg(conns[0],m):conn.send(m);
+function hostStart(){const[,n,nt]=FM[L.fmt];if(L.names.length===n)start('online',n,nt,L.names.slice())}
+function pushAll(){conns.forEach((c,i)=>{if(i)c.send({t:'state',v:{...G,deck:[],disc:[],me:i,hands:G.hands.map((h,j)=>j===i?h:[])}})});render()}
+function joinRoom(code){const name=myName();code=code.trim().toUpperCase();if(!code)return;host=false;
+ peer=new Peer();peer.on('error',e=>err(e.type==='peer-unavailable'?'No room with that code.':'Connection problem ('+e.type+').'));
+ peer.on('open',()=>{const c=conn=peer.connect('seqgame-'+code,{serialization:'json',reliable:true});
+  c.on('open',()=>c.send({t:'join',name}));
+  c.on('data',m=>{if(m.t==='lobby'){L=m.L;G=null;render()}else if(m.t==='state'){G=m.v;render()}else if(m.t==='err')err(m.msg)});
+  c.on('close',()=>{if(peer)err('The room was closed.')})})}
+function lobbyView(){const [lab,cap,nt]=FM[L.fmt];
+ $('#app').innerHTML=`<div class="lob"><h1>SEQUENCE</h1><p>Room code</p><div class="code">${L.code}</div><small>Friends tap “Join room” and type this code.</small>
+ ${host?`<select id="fm" aria-label="Game format">${FM.map((f,i)=>`<option value="${i}" ${i===L.fmt?'selected':''} ${f[1]<L.names.length?'disabled':''}>${f[0]} (${f[1]} players)</option>`).join('')}</select>`:`<p>Format: <b>${lab}</b></p>`}
+ <p>${L.names.map((n,i)=>`${n} (${TEAM[i%nt]})`).join('<br>')}</p><p><b>${L.names.length}/${cap}</b> joined</p>
+ ${host?`<button class="big" data-a="go" ${L.names.length<cap?'disabled':''}>Start game</button>`:'<p>Waiting for the host to start…</p>'}<button class="link" data-a="new">Leave</button></div>`}
+render();
+</script></body></html>
